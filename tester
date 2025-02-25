@@ -1,0 +1,78 @@
+Sub CreateGausPlots()
+    Dim ws As Worksheet
+    Dim chartObj As ChartObject
+    Dim lastRow As Long
+    Dim matchPatterns As Variant
+    Dim matchPattern As Variant
+    Dim plotRow As Long
+    Dim chartTitle As String
+    Dim xLabels As Range
+    Dim yValues As Range
+    Dim i As Long
+    Dim maxPoints As Integer
+
+    ' Set target sheet
+    Set ws = ThisWorkbook.Sheets("Gaus Values")
+
+    ' Remove old charts
+    For Each chartObj In ws.ChartObjects
+        chartObj.Delete
+    Next chartObj
+
+    ' Define patterns to match
+    matchPatterns = Array("2_1_Gaus", "5_1_Gaus", "7_Gaus")
+
+    ' Set maximum data points to avoid Excel errors
+    maxPoints = 100 ' Adjust as needed
+
+    ' Loop through each pattern
+    plotRow = 1
+    For Each matchPattern In matchPatterns
+        ' Find last row in column I (NAZEV)
+        lastRow = ws.Cells(ws.Rows.Count, 9).End(xlUp).Row
+        
+        ' Ensure there is data
+        If lastRow < 2 Then GoTo NextPattern
+
+        ' Set x-axis labels (NAZEV + Poznamka)
+        Set xLabels = ws.Range("J2:J" & lastRow)
+
+        ' Set y-axis values (SKUT), limiting data points if necessary
+        If lastRow > maxPoints Then
+            Set yValues = ws.Range("B2:B" & (2 + maxPoints))
+            Set xLabels = ws.Range("J2:J" & (2 + maxPoints))
+        Else
+            Set yValues = ws.Range("B2:B" & lastRow)
+        End If
+
+        ' Check for numeric values in SKUT column
+        For Each cell In yValues
+            If Not IsNumeric(cell.Value) Or IsEmpty(cell.Value) Then
+                MsgBox "Non-numeric or empty values detected in SKUT column for " & matchPattern, vbExclamation, "Error"
+                GoTo NextPattern
+            End If
+        Next cell
+
+        ' Create chart
+        Set chartObj = ws.ChartObjects.Add(Left:=100, Width:=400, Top:=plotRow * 200, Height:=200)
+        With chartObj.Chart
+            .ChartType = xlLine
+            chartTitle = matchPattern & " Data"
+            .HasTitle = True
+            .ChartTitle.Text = chartTitle
+            .Axes(xlCategory, xlPrimary).HasTitle = True
+            .Axes(xlCategory, xlPrimary).AxisTitle.Text = "NAZEV + Poznamka"
+            .Axes(xlValue, xlPrimary).HasTitle = True
+            .Axes(xlValue, xlPrimary).AxisTitle.Text = "SKUT"
+
+            ' Add new data series instead of using SetSourceData
+            .SeriesCollection.NewSeries
+            .SeriesCollection(1).Values = yValues
+            .SeriesCollection(1).XValues = xLabels
+            .SeriesCollection(1).Name = matchPattern
+        End With
+
+        plotRow = plotRow + 1 ' Move to next chart position
+NextPattern:
+    Next matchPattern
+End Sub
